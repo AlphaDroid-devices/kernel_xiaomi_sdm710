@@ -10,6 +10,7 @@
 #include <linux/nsproxy.h>
 #include <linux/security.h>
 #include <linux/fs_struct.h>
+#include <linux/suspicious.h>
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 #include <linux/susfs_def.h>
 #endif
@@ -107,6 +108,11 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
 
+	if (is_suspicious_mount(mnt, &p->root)) {
+		err = SEQ_SKIP;
+		goto out;
+	}
+
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
 		return 0;
@@ -147,6 +153,11 @@ static int show_mountinfo(struct seq_file *m, struct vfsmount *mnt)
 	struct super_block *sb = mnt->mnt_sb;
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	int err;
+
+	if (is_suspicious_mount(mnt, &p->root)) {
+		err = SEQ_SKIP;
+		goto out;
+	}
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
@@ -216,6 +227,11 @@ static int show_vfsstat(struct seq_file *m, struct vfsmount *mnt)
 	struct path mnt_path = { .dentry = mnt->mnt_root, .mnt = mnt };
 	struct super_block *sb = mnt_path.dentry->d_sb;
 	int err;
+
+	if (is_suspicious_mount(mnt, &p->root)) {
+		err = SEQ_SKIP;
+		goto out;
+	}
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MOUNT
 	if (unlikely((r->mnt_id >= DEFAULT_SUS_MNT_ID) && !susfs_is_current_ksu_domain()))
