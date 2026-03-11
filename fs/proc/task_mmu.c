@@ -391,7 +391,9 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 		}
 #endif
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-		if (unlikely(inode->i_state & BIT_SUS_KSTAT)) {
+		if (unlikely(test_bit(AS_FLAGS_SUS_KSTAT, &inode->i_state) &&
+			susfs_is_current_proc_umounted_app()))
+		{
 			susfs_sus_ino_for_show_map_vma(inode->i_ino, &dev, &ino);
 			goto bypass_orig_flow;
 		}
@@ -1620,9 +1622,11 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
 #ifdef CONFIG_KSU_SUSFS_SUS_MAP
 		vma = find_vma(mm, start_vaddr);
-		if (vma && vma->vm_file) {
+		if (vma->vm_file) {
 			struct inode *inode = file_inode(vma->vm_file);
-			if (unlikely(inode->i_state & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
+			if (unlikely(test_bit(AS_FLAGS_SUS_MAP, &inode->i_state) &&
+				susfs_is_current_proc_umounted_app()))
+			{
 				pm.show_pfn = false;
 				pm.buffer->pme = 0;
 			}
