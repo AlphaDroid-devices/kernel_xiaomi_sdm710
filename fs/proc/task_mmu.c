@@ -379,7 +379,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 	if (file) {
 		struct inode *inode = file_inode(vma->vm_file);
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-		if (PRE_CHECK_OPEN_REDIRECT(inode)) {
+		if (SUSFS_IS_INODE_OPEN_REDIRECT(inode)) {
 			if (!susfs_open_redirect_spoof_show_map_vma(inode, &ino, &dev, spoofed_redirected_name)) {
 				pgoff = ((loff_t)vma->vm_pgoff) << PAGE_SHIFT;
 				goto orig_flow;
@@ -388,7 +388,7 @@ show_map_vma(struct seq_file *m, struct vm_area_struct *vma, int is_pid)
 #endif // #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
 
 #ifdef CONFIG_KSU_SUSFS_SUS_MAP
-		if (unlikely(inode->i_state & BIT_SUS_MAPS) && susfs_is_current_proc_umounted()) {
+		if (SUSFS_IS_INODE_SUS_MAP(inode)) {
 			seq_setwidth(m, 25 + sizeof(void *) * 6 - 1);
 			seq_put_hex_ll(m, NULL, vma->vm_start, 8);
 			seq_put_hex_ll(m, "-", vma->vm_end, 8);
@@ -1642,16 +1642,12 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 		ret = walk_page_range(start_vaddr, end, &pagemap_walk);
 #ifdef CONFIG_KSU_SUSFS_SUS_MAP
 		vma = find_vma(mm, start_vaddr);
-		if (vma->vm_file) {
+		if (vma && vma->vm_file) {
 			struct inode *inode = file_inode(vma->vm_file);
-			if (unlikely(test_bit(AS_FLAGS_SUS_MAP, &inode->i_state) &&
-				susfs_is_current_proc_umounted_app()))
-			{
-				pm.show_pfn = false;
+			if (SUSFS_IS_INODE_SUS_MAP(inode))
 				pm.buffer->pme = 0;
-			}
 		}
-#endif
+#endif // #ifdef CONFIG_KSU_SUSFS_SUS_MAP
 		up_read(&mm->mmap_sem);
 		start_vaddr = end;
 
