@@ -112,6 +112,11 @@ $(info -- KernelSU-Next Manager signature hash: $(KSU_NEXT_MANAGER_HASH))
 ## Logic flipped for HAVE_KSU_HOOK: 0 is success, 1 is failure
 HAVE_KSU_HOOK ?= 1
 
+# Only enforce hook detection when KernelSU is actually being built; this
+# avoids erroring out during make mrproper / oldconfig when CONFIG_KSU* is
+# not yet defined.
+ifneq ($(filter y m,$(CONFIG_KSU)),)
+
 # Checks hooks state
 ifeq ($(CONFIG_KSU_KPROBES_HOOK), y)
 $(info -- KernelSU-Next: Hook mode: Kprobes)
@@ -130,6 +135,8 @@ endif
 ifneq ($(HAVE_KSU_HOOK),0)
 $(error -- KernelSU-Next: No hooks were defined, please integrate manual hooks in your kernel!)
 endif
+
+endif # CONFIG_KSU=y/m
 
 # some backports
 ifneq ($(shell grep -Eq "^static int can_umount" $(srctree)/fs/namespace.c; echo $$?),0)
