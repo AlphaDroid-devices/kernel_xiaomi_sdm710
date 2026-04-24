@@ -1299,6 +1299,11 @@ static struct watch_dir g_watch = { .path = "/data/media/0", // we choose the un
 static int add_mark_on_inode(struct inode *inode, u32 mask,
 								struct fsnotify_mark **out);
 
+static void susfs_fsnotify_free_mark(struct fsnotify_mark *mark)
+{
+	kfree(mark);
+}
+
 static unsigned long sdcard_cleanup_scheduled;
 static struct delayed_work sdcard_cleanup_dwork;
 
@@ -1360,13 +1365,16 @@ static int watch_one_dir(struct watch_dir *wd)
  * synchronize_srcu on the same SRCU struct, causing a permanent deadlock).
  * Cleanup is deferred to a delayed_work that runs outside the SRCU context.
  */
+/*
+ * Linux < 4.14: handle_event has no fsnotify_iter_info and passes void *data.
+ * Linux >= 4.14: const void *data + struct fsnotify_iter_info * (see sm6150).
+ */
 static int susfs_handle_sdcard_inode_event(struct fsnotify_group *group,
-											struct inode *to_tell,
-											struct fsnotify_mark *inode_mark,
-											struct fsnotify_mark *vfsmount_mark,
-											u32 mask, const void *data, int data_type,
-											const unsigned char *file_name, u32 cookie,
-											struct fsnotify_iter_info *iter_info)
+					   struct inode *to_tell,
+					   struct fsnotify_mark *inode_mark,
+					   struct fsnotify_mark *vfsmount_mark,
+					   u32 mask, void *data, int data_type,
+					   const unsigned char *file_name, u32 cookie)
 {
 	if (!file_name || strlen(file_name) != 7 ||
 	    memcmp(file_name, "Android", 7))
@@ -1394,13 +1402,15 @@ static int add_mark_on_inode(struct inode *inode, u32 mask,
 	if (!m)
 		return -ENOMEM;
 
-	fsnotify_init_mark(m, g);
+	fsnotify_init_mark(m, susfs_fsnotify_free_mark);
 	m->mask = mask;
 
-	if (fsnotify_add_mark(m, inode, NULL, 0)) {
+	if (fsnotify_add_mark(m, g, inode, NULL, 0)) {
 		fsnotify_put_mark(m);
 		return -EINVAL;
 	}
+	/* Drop init_mark() ref; mark stays attached via inode/group refs */
+	fsnotify_put_mark(m);
 	*out = m;
 	return 0;
 }
