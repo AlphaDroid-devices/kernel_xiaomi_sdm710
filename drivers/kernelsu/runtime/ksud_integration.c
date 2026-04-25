@@ -44,8 +44,15 @@ static const char KERNEL_SU_RC[] =
 
 	"on post-fs-data\n"
 	"    start logd\n"
+	"    mkdir /data/adb 0700 root root\n"
+	"    mkdir /data/adb/modules 0755 root root\n"
+	"    mkdir /data/adb/modules_update 0700 root root\n"
+	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- /system/bin/chcon -R u:object_r:adb_data_file:s0 /data/adb/modules\n"
+	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- /system/bin/chcon -R u:object_r:adb_data_file:s0 /data/adb/modules_update\n"
 	// We should wait for the post-fs-data finish
 	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " post-fs-data\n"
+	// Start the daemon immediately after post-fs-data handles modules
+	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " services\n"
 	"\n"
 
 	"on nonencrypted\n"
@@ -57,7 +64,10 @@ static const char KERNEL_SU_RC[] =
 	"\n"
 
 	"on property:sys.boot_completed=1\n"
-	"    exec u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " boot-completed\n"
+	"    exec_background u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " boot-completed\n"
+	"\n"
+	"on property:dev.bootcomplete=1\n"
+	"    exec_background u:r:" KERNEL_SU_DOMAIN ":s0 root -- " KSUD_PATH " boot-completed\n"
 	"\n"
 
 	"\n";

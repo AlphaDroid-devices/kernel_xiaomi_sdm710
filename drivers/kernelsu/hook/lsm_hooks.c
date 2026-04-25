@@ -10,6 +10,7 @@
 #include "compat/kernel_compat.h"
 #include "setuid_hook.h"
 #include "manager/throne_tracker.h"
+#include "ksu.h"
 
 #ifndef KSU_KPROBES_HOOK
 
@@ -29,6 +30,20 @@ static int ksu_key_permission(key_ref_t key_ref, const struct cred *cred,
 	}
 	init_session_keyring = cred->session_keyring;
 	pr_info("kernel_compat: got init_session_keyring\n");
+
+	/*
+	 * Ensure override_creds(ksu_cred) carries a usable session keyring
+	 * on older kernels. Otherwise writes under /data/adb/ksu may fail
+	 * with -ENOKEY (seen as save_allow_list create file failed: -126).
+	 */
+#ifdef CONFIG_KEYS
+	if (ksu_cred && init_session_keyring && ksu_cred->session_keyring != init_session_keyring) {
+		if (ksu_cred->session_keyring) {
+			key_put(ksu_cred->session_keyring);
+		}
+		ksu_cred->session_keyring = key_get(init_session_keyring);
+	}
+#endif
 	return 0;
 }
 #endif

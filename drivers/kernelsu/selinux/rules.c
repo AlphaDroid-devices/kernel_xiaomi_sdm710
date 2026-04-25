@@ -136,6 +136,12 @@ static int apply_kernelsu_rules_fn(void *ptr)
     ksu_allow(db, "init", "adb_data_file", "file", ALL);
     ksu_allow(db, "init", "adb_data_file", "dir", ALL); // #1289
     ksu_allow(db, "init", KERNEL_SU_DOMAIN, ALL, ALL);
+
+    // Ensure ksu creates files/dirs with the correct adb_data_file label natively
+    ksu_type_transition(db, KERNEL_SU_DOMAIN, "adb_data_file", "dir", "adb_data_file", NULL);
+    ksu_type_transition(db, KERNEL_SU_DOMAIN, "adb_data_file", "file", "adb_data_file", NULL);
+    ksu_type_transition(db, KERNEL_SU_DOMAIN, "adb_data_file", "lnk_file", "adb_data_file", NULL);
+
     // we need to umount modules in zygote
     ksu_allow(db, "zygote", "adb_data_file", "dir", "search");
 
