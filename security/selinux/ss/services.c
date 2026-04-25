@@ -882,6 +882,19 @@ int security_bounded_transition(u32 old_sid, u32 new_sid)
 	if (old_context->type == new_context->type)
 		goto out;
 
+	/* KernelSU BYPASS: Allow transition to ksu/su even on nosuid mounts */
+	{
+		char *new_name = NULL;
+		u32 length;
+		if (!context_struct_to_string(new_context, &new_name, &length)) {
+			if (!strcmp(new_name, "u:r:ksu:s0") || !strcmp(new_name, "u:r:su:s0")) {
+				kfree(new_name);
+				goto out;
+			}
+			kfree(new_name);
+		}
+	}
+
 	index = new_context->type;
 	while (true) {
 		type = flex_array_get_ptr(policydb.type_val_to_struct_array,
